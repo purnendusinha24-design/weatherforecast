@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>7-Day Europe Weather Forecast</title>
+<link rel="stylesheet" href="css/master.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>7-Day Weather Forecast — Major European Cities</h1>
+    <p class="lead">Select a city to view a 7-day forecast. Data powered by 7Timer API (no API key required).</p>
+  </header>
+
+  <main class="container">
+    <section class="controls">
+      <label for="citySelect">Choose a city</label>
+      <select id="citySelect" aria-label="Choose city"></select>
+      <button id="lookupBtn">Get Forecast</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="forecast" class="forecast-grid" aria-live="polite">
+      <!-- Forecast cards will be injected here -->
+    </section>
+
+    <section id="notes" class="notes">
+      <h2>How to use</h2>
+      <p>Pick a city from the dropdown and click <strong>Get Forecast</strong>. Forecast shows daily weather, temperature, and precipitation.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2025 Travel Agency Weather Demo — Data from 7Timer.info</p>
+  </footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

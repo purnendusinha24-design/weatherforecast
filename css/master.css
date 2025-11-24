@@ -1,0 +1,76 @@
+
+/* master.css improved */
+:root{
+  --bg:#f3f6f9;
+  --card:#ffffff;
+  --accent:#0b74de;
+  --muted:#666;
+  --shadow: 0 6px 18px rgba(10,20,30,0.08);
+}
+body{
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  margin:0;
+  background: linear-gradient(180deg,#eef3f8,#f7fbff);
+  color:#07203b;
+  -webkit-font-smoothing:antialiased;
+}
+.container{
+  width:95%;
+  max-width:980px;
+  margin:18px auto;
+  padding:16px;
+}
+.site-header{
+  text-align:center;
+  padding:18px 0;
+}
+.lead{ color:var(--muted); margin-top:6px;}
+.controls{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.controls select{
+  padding:8px 10px;
+  font-size:14px;
+}
+.controls button{
+  padding:8px 12px;
+  background:var(--accent);
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+.controls button:active{ transform:translateY(1px);}
+#status{ margin-left:6px; font-size:14px;}
+.forecast-grid h2{ margin:8px 0 12px 0; font-size:18px;}
+.cards{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap:12px;
+}
+.card{
+  background:var(--card);
+  padding:12px;
+  border-radius:10px;
+  box-shadow: var(--shadow);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+.card img{ margin:6px 0; }
+.card .date{ font-size:13px; color:var(--muted); }
+.card .weather{ margin-top:6px; font-size:15px; color:#0b74de;}
+.card .temp{ margin-top:6px; font-weight:600;}
+.card .precip{ margin-top:4px; font-size:13px; color:var(--muted);}
+
+footer{
+  margin:28px 0;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+}
