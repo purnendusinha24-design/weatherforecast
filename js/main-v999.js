@@ -9,17 +9,23 @@
     statusEl.style.color = err ? "red" : "black";
   }
 
-  async function loadCities() {
-    const res = await fetch('https://raw.githubusercontent.com/purnendusinha24-design/weatherforecast/main/city_coordinates.csv');
-    const text = await res.text();
-    const lines = text.trim().split("\n");
-    lines.shift();
+  async function loadCities(){
+  const res = await fetch('https://raw.githubusercontent.com/purnendusinha24-design/weatherforecast/main/city_coordinates.csv');
+  const text = await res.text();
+  
+  const lines = text.trim().split('\n');
+  lines.shift(); // remove header
 
-    return lines.map(row => {
-      const [lat, lon, city, country] = row.split(",");
-      return { lat, lon, city, country };
-    });
-  }
+  return lines.map(line => {
+    const parts = line.split(',');
+    return {
+      lat: parts[0],
+      lon: parts[1],
+      city: parts[2],
+      country: parts[3]
+    };
+  });
+}
 
   function populateCities(cities) {
     cities.sort((a, b) => a.city.localeCompare(b.city));
