@@ -1,29 +1,25 @@
-// main.js
+// js/main.js
 // 7Timer 7-day weather app
-// - Loads cities from city_coordinates.csv
-// - Fetches civillight forecast from 7Timer
-// - Displays cards with icons, temps, and wind
 
 const citySelect = document.getElementById("citySelect");
 const lookupBtn  = document.getElementById("lookupBtn");
 const statusEl   = document.getElementById("status");
 const forecastEl = document.getElementById("forecast");
 
-// Map 7Timer "weather" codes to icon file names in /icons
-// (icons you generated: clear.png, pcloudy.png, mcloudy.png, cloudy.png, humid.png,
-//  lightrain.png, oshower.png, ishower.png, lightsnow.png, rain.png, snow.png, ts.png)
+// Map 7Timer "weather" codes to PNG icons in /weather_icons
 function getIconPath(weatherCode) {
-  // weatherCode is like: "clear", "pcloudy", "mcloudy", "cloudy", "humid",
-  // "lightrain", "oshower", "ishower", "lightsnow", "rain", "snow", "ts"
-  return `icons/${weatherCode}.png`;
+  // codes: clear, pcloudy, mcloudy, cloudy, humid,
+  // lightrain, oshower, ishower, lightsnow, rain, snow, ts
+  return `weather_icons/${weatherCode}.png`;
 }
 
-// Load cities from CSV file and populate the dropdown
+// Load cities from CSV and fill the dropdown
 async function loadCities() {
+  console.log("Loading cities from CSV…");
   try {
     const resp = await fetch("city_coordinates.csv");
     if (!resp.ok) {
-      throw new Error("Could not load city_coordinates.csv");
+      throw new Error(`Could not load city_coordinates.csv (status ${resp.status})`);
     }
 
     const text = await resp.text();
@@ -33,34 +29,46 @@ async function loadCities() {
       throw new Error("CSV has no data rows");
     }
 
-    // Expecting header like: latitude,longitude,city,country
-    const header = lines[0].split(",");
-    const latIdx  = header.indexOf("latitude");
-    const lonIdx  = header.indexOf("longitude");
-    const cityIdx = header.indexOf("city");
-    const countryIdx = header.indexOf("country"); // may or may not exist
+    // Detect header style: either
+    // 1) latitude,longitude,city,country
+    // 2) city,lat,lon
+    const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+    console.log("CSV header:", header);
+
+    let latIdx  = header.indexOf("latitude");
+    let lonIdx  = header.indexOf("longitude");
+    let cityIdx = header.indexOf("city");
+    let countryIdx = header.indexOf("country");
+
+    // fallback: city,lat,lon
+    if (latIdx === -1 && lonIdx === -1) {
+      latIdx  = header.indexOf("lat");
+      lonIdx  = header.indexOf("lon");
+    }
 
     if (latIdx === -1 || lonIdx === -1 || cityIdx === -1) {
-      throw new Error("CSV headers must include latitude, longitude, city");
+      throw new Error("CSV headers must include latitude & longitude (or lat/lon) and city");
     }
 
     // Clear existing options
     citySelect.innerHTML = "";
 
-    // Add one default "placeholder" option
+    // Placeholder option
     const defaultOpt = document.createElement("option");
     defaultOpt.value = "";
     defaultOpt.textContent = "Select a city…";
     citySelect.appendChild(defaultOpt);
 
-    // Add each city from CSV
+    // Add each row as an <option>
     lines.slice(1).forEach(line => {
-      if (!line.trim()) return; // skip blank lines
+      if (!line.trim()) return; // skip empty lines
       const cols = line.split(",");
-      const lat  = cols[latIdx];
-      const lon  = cols[lonIdx];
-      const city = cols[cityIdx];
-      const country = countryIdx !== -1 ? cols[countryIdx] : "";
+      if (cols.length < 3) return;
+
+      const lat  = cols[latIdx].trim();
+      const lon  = cols[lonIdx].trim();
+      const city = cols[cityIdx].trim();
+      const country = countryIdx !== -1 ? cols[countryIdx].trim() : "";
 
       const opt = document.createElement("option");
       opt.value = `${lat},${lon}`;
@@ -68,25 +76,26 @@ async function loadCities() {
       citySelect.appendChild(opt);
     });
 
+    console.log("Cities loaded into dropdown");
+
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = "Error loading city list.";
+    console.error("Error in loadCities:", err);
+    statusEl.textContent = "Error loading city list. Check console for details.";
   }
 }
 
-// Fetch forecast for selected city
+// Fetch weather for selected city
 async function loadWeather() {
   const value = citySelect.value;
 
-  // No city chosen
   if (!value) {
-    statusEl.textContent = "Please choose a city.";
+    statusEl.textContent = "Please choose a city first.";
     return;
   }
 
   const [lat, lon] = value.split(",");
+  console.log(`Loading weather for lat=${lat}, lon=${lon}`);
 
-  // Clear UI
   forecastEl.innerHTML = "";
   statusEl.textContent = "Loading forecast…";
 
@@ -115,7 +124,7 @@ async function loadWeather() {
 
       const iconSrc = getIconPath(day.weather);
 
-      // For civillight, temp2m is an object: { max, min }
+      // civillight uses temp2m: { max, min }
       const maxTemp = day.temp2m?.max;
       const minTemp = day.temp2m?.min;
 
@@ -130,14 +139,17 @@ async function loadWeather() {
       forecastEl.appendChild(card);
     });
 
+    console.log("Forecast rendered");
+
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = "Error loading forecast.";
+    console.error("Error in loadWeather:", err);
+    statusEl.textContent = "Error loading forecast. Check console for details.";
   }
 }
 
-// Wire up events
-lookupBtn.addEventListener("click", loadWeather);
-
-// Load city list on page load
-loadCities();
+// Initialize when DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("main.js loaded, initializing…");
+  loadCities();
+  lookupBtn.addEventListener("click", loadWeather);
+});
