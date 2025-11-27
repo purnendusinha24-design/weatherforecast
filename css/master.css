@@ -1,84 +1,44 @@
+# css/master.css
 body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background: #F5F7FA;
-    color: #333;
+  font-family: Arial, sans-serif;
+  background: #eef2f5;
+  margin: 0;
 }
-
 header {
-    text-align: center;
-    padding: 40px 20px;
+  background: #0066cc;
+  color: white;
+  text-align: center;
+  padding: 20px;
 }
-
-h1 {
-    margin-bottom: 10px;
-    color: #1a3d7c;
-}
-
 .controls {
-    text-align: center;
-    margin: 20px;
+  text-align: center;
+  margin: 20px;
 }
-
-select, button {
-    padding: 8px 12px;
-    font-size: 14px;
-    margin-right: 10px;
+#citySelect {
+  padding: 8px;
+  font-size: 16px;
 }
-
-button {
-    background: #1a73e8;
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    border-radius: 4px;
+#lookupBtn {
+  padding: 8px 14px;
+  margin-left: 10px;
+  cursor: pointer;
 }
-
-button:hover {
-    background: #155ac1;
-}
-
-#status {
-    margin-left: 10px;
-    font-style: italic;
-}
-
 #forecast {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 20px;
 }
-
-.cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
+.day-card {
+  width: 180px;
+  background: white;
+  padding: 15px;
+  margin: 10px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
 }
-
-.card {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
-    text-align: center;
-}
-
-.card img {
-    width: 64px;
-    height: 64px;
-}
-
-.date {
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-footer {
-    margin-top: 40px;
-    text-align: center;
-    padding: 20px;
-    font-size: 14px;
-    color: #666;
+.weather-icon {
+  width: 64px;
+  height: 64px;
 }
