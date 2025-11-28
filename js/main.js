@@ -1,14 +1,17 @@
 // js/main.js
-// 7Timer 7-day weather app
+// 7Timer 7-day weather app (robust JSON handling)
 
+// DOM references
 const citySelect = document.getElementById("citySelect");
 const lookupBtn  = document.getElementById("lookupBtn");
 const statusEl   = document.getElementById("status");
 const forecastEl = document.getElementById("forecast");
 
+// ---------- Helpers ----------
+
 // Convert YYYYMMDD → YYYY/MM/DD
 function formatDate(yyyymmdd) {
-  const s = yyyymmdd.toString();
+  const s = String(yyyymmdd);
   const y = s.slice(0, 4);
   const m = s.slice(4, 6);
   const d = s.slice(6, 8);
@@ -20,7 +23,15 @@ function getIconPath(weatherCode) {
   return `weather_icons/${weatherCode}.png`;
 }
 
-// Load city list from CSV
+// Safely parse 7Timer JSON (it sometimes includes trailing commas)
+function parse7TimerJson(rawText) {
+  // Remove trailing commas before } or ]
+  const cleaned = rawText.replace(/,(?=\s*[}\]])/g, "");
+  return JSON.parse(cleaned);
+}
+
+// ---------- Load city list from CSV ----------
+
 async function loadCities() {
   try {
     const resp = await fetch("city_coordinates.csv");
@@ -29,28 +40,35 @@ async function loadCities() {
     const text = await resp.text();
     const lines = text.trim().split(/\r?\n/);
 
+    if (!lines.length) {
+      throw new Error("CSV is empty.");
+    }
+
     const header = lines[0].split(",").map(h => h.toLowerCase());
 
-    const latIdx = header.indexOf("latitude");
-    const lonIdx = header.indexOf("longitude");
-    const cityIdx = header.indexOf("city");
+    const latIdx     = header.indexOf("latitude");
+    const lonIdx     = header.indexOf("longitude");
+    const cityIdx    = header.indexOf("city");
     const countryIdx = header.indexOf("country");
 
     if (latIdx === -1 || lonIdx === -1 || cityIdx === -1) {
-      throw new Error("CSV must contain latitude, longitude, city");
+      throw new Error("CSV must contain latitude, longitude, city columns.");
     }
 
     citySelect.innerHTML = `<option value="">Select a city…</option>`;
 
-    // Add each city
     lines.slice(1).forEach(line => {
-      const cols = line.split(",");
-      if (cols.length < 3) return;
+      if (!line.trim()) return;
 
-      const lat = cols[latIdx].trim();
-      const lon = cols[lonIdx].trim();
-      const city = cols[cityIdx].trim();
-      const country = countryIdx !== -1 ? cols[countryIdx].trim() : "";
+      const cols = line.split(",");
+      if (cols.length <= Math.max(latIdx, lonIdx, cityIdx)) return;
+
+      const lat     = cols[latIdx].trim();
+      const lon     = cols[lonIdx].trim();
+      const city    = cols[cityIdx].trim();
+      const country = countryIdx !== -1 ? (cols[countryIdx] || "").trim() : "";
+
+      if (!lat || !lon || !city) return;
 
       const opt = document.createElement("option");
       opt.value = `${lat},${lon}`;
@@ -64,7 +82,8 @@ async function loadCities() {
   }
 }
 
-// Load weather from 7Timer API
+// ---------- Load weather from 7Timer API ----------
+
 async function loadWeather() {
   const value = citySelect.value;
 
@@ -81,20 +100,46 @@ async function loadWeather() {
   try {
     const url = `https://www.7timer.info/bin/api.pl?lon=${lon}&lat=${lat}&product=civillight&output=json`;
     const resp = await fetch(url);
-    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(`HTTP error ${resp.status}`);
+    }
+
+    // 7Timer sometimes sends invalid JSON (trailing commas), so:
+    const raw = await resp.text();
+    console.log("Raw 7Timer response:", raw);
+
+    const data = parse7TimerJson(raw);
+
+    if (!data || !Array.isArray(data.dataseries)) {
+      throw new Error("Unexpected response format (no dataseries).");
+    }
 
     statusEl.textContent = "";
 
-    data.dataseries.slice(0, 7).forEach(day => {
+    const days = data.dataseries.slice(0, 7);
+
+    if (!days.length) {
+      statusEl.textContent = "No forecast data available.";
+      return;
+    }
+
+    days.forEach(day => {
       const card = document.createElement("div");
       card.className = "day-card";
 
+      const date = day.date ? formatDate(day.date) : "Unknown date";
+      const weatherCode = day.weather || "unknown";
+      const maxTemp = day.temp2m && day.temp2m.max != null ? day.temp2m.max : "?";
+      const minTemp = day.temp2m && day.temp2m.min != null ? day.temp2m.min : "?";
+      const windMax = day.wind10m_max != null ? day.wind10m_max : "?";
+
       card.innerHTML = `
-        <h3>${formatDate(day.date)}</h3>
-        <img class="weather-icon" src="${getIconPath(day.weather)}" alt="${day.weather}">
-        <p><strong>${day.weather}</strong></p>
-        <p>Temp: ${day.temp2m.max}°C / ${day.temp2m.min}°C</p>
-        <p>Wind: ${day.wind10m_max} m/s</p>
+        <h3>${date}</h3>
+        <img class="weather-icon" src="${getIconPath(weatherCode)}" alt="${weatherCode}">
+        <p><strong>${weatherCode}</strong></p>
+        <p>Temp: ${maxTemp}°C / ${minTemp}°C</p>
+        <p>Wind: ${windMax} m/s</p>
       `;
 
       forecastEl.appendChild(card);
@@ -106,7 +151,8 @@ async function loadWeather() {
   }
 }
 
-// Initialize app
+// ---------- Initialize app ----------
+
 document.addEventListener("DOMContentLoaded", () => {
   loadCities();
   lookupBtn.addEventListener("click", loadWeather);
