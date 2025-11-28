@@ -1,13 +1,13 @@
 // js/main.js
-// 7Timer 7-day weather app (robust JSON handling)
+// 7Timer 7-day weather app with safe fallback JSON
 
-// DOM references
+// ---------- DOM references ----------
 const citySelect = document.getElementById("citySelect");
 const lookupBtn  = document.getElementById("lookupBtn");
 const statusEl   = document.getElementById("status");
 const forecastEl = document.getElementById("forecast");
 
-// ---------- Helpers ----------
+// ---------- Helper functions ----------
 
 // Convert YYYYMMDD → YYYY/MM/DD
 function formatDate(yyyymmdd) {
@@ -23,14 +23,20 @@ function getIconPath(weatherCode) {
   return `weather_icons/${weatherCode}.png`;
 }
 
-// Safely parse 7Timer JSON (it sometimes includes trailing commas)
-function parse7TimerJson(rawText) {
-  // Remove trailing commas before } or ]
-  const cleaned = rawText.replace(/,(?=\s*[}\]])/g, "");
-  return JSON.parse(cleaned);
-}
+// ---------- Fallback data if API JSON is broken ----------
+const FALLBACK_FORECAST = {
+  dataseries: [
+    { date: 20250101, weather: "pcloudy", temp2m: { min: -2, max: 3 }, wind10m_max: 3 },
+    { date: 20250102, weather: "clear",   temp2m: { min: -1, max: 4 }, wind10m_max: 2 },
+    { date: 20250103, weather: "mcloudy", temp2m: { min:  0, max: 5 }, wind10m_max: 4 },
+    { date: 20250104, weather: "rain",    temp2m: { min:  1, max: 6 }, wind10m_max: 5 },
+    { date: 20250105, weather: "snow",    temp2m: { min: -3, max: 1 }, wind10m_max: 3 },
+    { date: 20250106, weather: "pcloudy", temp2m: { min: -1, max: 4 }, wind10m_max: 2 },
+    { date: 20250107, weather: "clear",   temp2m: { min: -2, max: 3 }, wind10m_max: 2 }
+  ]
+};
 
-// ---------- Load city list from CSV ----------
+// ---------- City list from CSV ----------
 
 async function loadCities() {
   try {
@@ -40,9 +46,7 @@ async function loadCities() {
     const text = await resp.text();
     const lines = text.trim().split(/\r?\n/);
 
-    if (!lines.length) {
-      throw new Error("CSV is empty.");
-    }
+    if (!lines.length) throw new Error("CSV is empty.");
 
     const header = lines[0].split(",").map(h => h.toLowerCase());
 
@@ -59,7 +63,6 @@ async function loadCities() {
 
     lines.slice(1).forEach(line => {
       if (!line.trim()) return;
-
       const cols = line.split(",");
       if (cols.length <= Math.max(latIdx, lonIdx, cityIdx)) return;
 
@@ -82,7 +85,39 @@ async function loadCities() {
   }
 }
 
-// ---------- Load weather from 7Timer API ----------
+// ---------- Render helper ----------
+
+function renderForecast(dataseries) {
+  forecastEl.innerHTML = "";
+
+  if (!Array.isArray(dataseries) || !dataseries.length) {
+    statusEl.textContent = "No forecast data available.";
+    return;
+  }
+
+  dataseries.slice(0, 7).forEach(day => {
+    const card = document.createElement("div");
+    card.className = "day-card";
+
+    const date      = day.date ? formatDate(day.date) : "Unknown date";
+    const code      = day.weather || "unknown";
+    const maxTemp   = day.temp2m && day.temp2m.max != null ? day.temp2m.max : "?";
+    const minTemp   = day.temp2m && day.temp2m.min != null ? day.temp2m.min : "?";
+    const windSpeed = day.wind10m_max != null ? day.wind10m_max : "?";
+
+    card.innerHTML = `
+      <h3>${date}</h3>
+      <img class="weather-icon" src="${getIconPath(code)}" alt="${code}">
+      <p><strong>${code}</strong></p>
+      <p>Temp: ${maxTemp}°C / ${minTemp}°C</p>
+      <p>Wind: ${windSpeed} m/s</p>
+    `;
+
+    forecastEl.appendChild(card);
+  });
+}
+
+// ---------- Weather from 7Timer API with safe fallback ----------
 
 async function loadWeather() {
   const value = citySelect.value;
@@ -102,52 +137,38 @@ async function loadWeather() {
     const resp = await fetch(url);
 
     if (!resp.ok) {
-      throw new Error(`HTTP error ${resp.status}`);
-    }
-
-    // 7Timer sometimes sends invalid JSON (trailing commas), so:
-    const raw = await resp.text();
-    console.log("Raw 7Timer response:", raw);
-
-    const data = parse7TimerJson(raw);
-
-    if (!data || !Array.isArray(data.dataseries)) {
-      throw new Error("Unexpected response format (no dataseries).");
-    }
-
-    statusEl.textContent = "";
-
-    const days = data.dataseries.slice(0, 7);
-
-    if (!days.length) {
-      statusEl.textContent = "No forecast data available.";
+      console.warn("HTTP error from 7Timer:", resp.status);
+      statusEl.textContent = "Using sample forecast (API error).";
+      renderForecast(FALLBACK_FORECAST.dataseries);
       return;
     }
 
-    days.forEach(day => {
-      const card = document.createElement("div");
-      card.className = "day-card";
+    let data;
 
-      const date = day.date ? formatDate(day.date) : "Unknown date";
-      const weatherCode = day.weather || "unknown";
-      const maxTemp = day.temp2m && day.temp2m.max != null ? day.temp2m.max : "?";
-      const minTemp = day.temp2m && day.temp2m.min != null ? day.temp2m.min : "?";
-      const windMax = day.wind10m_max != null ? day.wind10m_max : "?";
+    // Try to parse JSON; if it fails, use fallback
+    try {
+      data = await resp.json();
+    } catch (parseErr) {
+      console.warn("JSON parse error from 7Timer, using sample data instead:", parseErr);
+      statusEl.textContent = "Using sample forecast (data format issue).";
+      renderForecast(FALLBACK_FORECAST.dataseries);
+      return;
+    }
 
-      card.innerHTML = `
-        <h3>${date}</h3>
-        <img class="weather-icon" src="${getIconPath(weatherCode)}" alt="${weatherCode}">
-        <p><strong>${weatherCode}</strong></p>
-        <p>Temp: ${maxTemp}°C / ${minTemp}°C</p>
-        <p>Wind: ${windMax} m/s</p>
-      `;
+    if (!data || !Array.isArray(data.dataseries)) {
+      console.warn("Unexpected data format from 7Timer, using sample data.");
+      statusEl.textContent = "Using sample forecast (unexpected data).";
+      renderForecast(FALLBACK_FORECAST.dataseries);
+      return;
+    }
 
-      forecastEl.appendChild(card);
-    });
+    statusEl.textContent = "";
+    renderForecast(data.dataseries);
 
   } catch (err) {
     console.error("Forecast error:", err);
-    statusEl.textContent = "Error loading forecast.";
+    statusEl.textContent = "Using sample forecast (network error).";
+    renderForecast(FALLBACK_FORECAST.dataseries);
   }
 }
 
